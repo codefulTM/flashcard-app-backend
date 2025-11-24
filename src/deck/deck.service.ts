@@ -20,16 +20,56 @@ export class DeckService {
     return this.decksRepository.save(deck);
   }
 
-  async findAll(userId: string): Promise<Deck[]> {
-    return this.decksRepository.find({ where: { user_id: userId } });
+  async findAll(userId: string): Promise<any[]> {
+    const decks = await this.decksRepository
+      .createQueryBuilder('deck')
+      .leftJoin('deck.flashcards', 'flashcard')
+      .select('deck.*')
+      .addSelect('MIN(flashcard.next_review_at)', 'next_review_at')
+      .where('deck.user_id = :userId', { userId })
+      .groupBy('deck.id')
+      .getRawMany();
+
+    // Map raw results to a cleaner structure if needed, or return as is.
+    // getRawMany returns snake_case column names usually.
+    return decks.map((d) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      is_public: d.is_public,
+      cards_per_session: d.cards_per_session,
+      user_id: d.user_id,
+      created_at: d.created_at,
+      updated_at: d.updated_at,
+      next_review_at: d.next_review_at,
+    }));
   }
 
-  async findOne(id: string): Promise<Deck> {
-    const deck = await this.decksRepository.findOne({ where: { id } });
+  async findOne(id: string): Promise<any> {
+    const deck = await this.decksRepository
+      .createQueryBuilder('deck')
+      .leftJoin('deck.flashcards', 'flashcard')
+      .select('deck.*')
+      .addSelect('MIN(flashcard.next_review_at)', 'next_review_at')
+      .where('deck.id = :id', { id })
+      .groupBy('deck.id')
+      .getRawOne();
+
     if (!deck) {
       throw new NotFoundException(`Deck with ID "${id}" not found`);
     }
-    return deck;
+
+    return {
+      id: deck.id,
+      name: deck.name,
+      description: deck.description,
+      is_public: deck.is_public,
+      cards_per_session: deck.cards_per_session,
+      user_id: deck.user_id,
+      created_at: deck.created_at,
+      updated_at: deck.updated_at,
+      next_review_at: deck.next_review_at,
+    };
   }
 
   async update(id: string, updateDeckDto: UpdateDeckDto): Promise<Deck> {
