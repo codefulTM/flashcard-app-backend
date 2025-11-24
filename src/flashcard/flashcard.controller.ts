@@ -27,8 +27,12 @@ export class FlashcardController {
   }
 
   @Get()
-  findAll(@Query('deckId') deckId?: string) {
-    return this.flashcardService.findAll(deckId);
+  findAll(
+    @Query('deckId') deckId?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.flashcardService.findAll(deckId, page, limit);
   }
 
   @Get(':id')

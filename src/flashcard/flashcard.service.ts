@@ -19,11 +19,22 @@ export class FlashcardService {
     return this.flashcardsRepository.save(flashcard);
   }
 
-  async findAll(deckId?: string): Promise<Flashcard[]> {
-    if (deckId) {
-      return this.flashcardsRepository.find({ where: { deck_id: deckId } });
-    }
-    return this.flashcardsRepository.find();
+  async findAll(
+    deckId?: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{ data: Flashcard[]; total: number }> {
+    const skip = (page - 1) * limit;
+    const where = deckId ? { deck_id: deckId } : {};
+
+    const [data, total] = await this.flashcardsRepository.findAndCount({
+      where,
+      skip,
+      take: limit,
+      order: { created_at: 'DESC' },
+    });
+
+    return { data, total };
   }
 
   async findOne(id: string): Promise<Flashcard> {
