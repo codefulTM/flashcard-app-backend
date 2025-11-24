@@ -3,14 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Flashcard } from '../entities/flashcard.entity';
+import { ReviewLog } from '../entities/review-log.entity';
 import { CreateFlashcardDto } from './dto/create-flashcard.dto';
 import { UpdateFlashcardDto } from './dto/update-flashcard.dto';
+import { ReviewFlashcardDto } from './dto/review-flashcard.dto';
+import { calculateSM2, ratingToQuality } from '../utils/sm2.algorithm';
 
 @Injectable()
 export class FlashcardService {
   constructor(
     @InjectRepository(Flashcard)
     private flashcardsRepository: Repository<Flashcard>,
+    @InjectRepository(ReviewLog)
+    private reviewLogsRepository: Repository<ReviewLog>,
     private configService: ConfigService,
   ) {}
 
@@ -99,5 +104,64 @@ Back: `;
       front_content: frontContent,
       back_content: backContent,
     });
+  }
+
+  async review(
+    id: string,
+    userId: string,
+    reviewDto: ReviewFlashcardDto,
+  ): Promise<Flashcard> {
+    const flashcard = await this.findOne(id);
+
+    // Convert rating (1-4) to SM-2 quality (0-5)
+    const quality = ratingToQuality(reviewDto.rating);
+
+    // Calculate new values using SM-2 algorithm
+    const sm2Result = calculateSM2({
+      quality,
+      repetitions: flashcard.repetitions,
+      easeFactor: flashcard.ease_factor,
+      interval: flashcard.interval || 0,
+    });
+
+    // Update flashcard with new values
+    flashcard.interval = sm2Result.interval;
+    flashcard.repetitions = sm2Result.repetitions;
+    flashcard.ease_factor = sm2Result.easeFactor;
+    flashcard.next_review_at = sm2Result.nextReviewDate;
+    flashcard.state = sm2Result.state;
+
+    // Save review log
+    const reviewLog = this.reviewLogsRepository.create({
+      user_id: userId,
+      flashcard_id: id,
+      rating: reviewDto.rating,
+      time_taken_ms: reviewDto.timeTakenMs || 0,
+    });
+    await this.reviewLogsRepository.save(reviewLog);
+
+    // Save and return updated flashcard
+    return this.flashcardsRepository.save(flashcard);
+  }
+
+  async getDueFlashcards(
+    deckId: string,
+    limit: number = 20,
+  ): Promise<Flashcard[]> {
+    const now = new Date();
+    // now.setHours(0, 0, 0, 0); // Removed to support intraday reviews
+
+    return this.flashcardsRepository
+      .createQueryBuilder('flashcard')
+      .where('flashcard.deck_id = :deckId', { deckId })
+      .andWhere('flashcard.is_suspended = :isSuspended', { isSuspended: false })
+      .andWhere(
+        '(flashcard.next_review_at IS NULL OR flashcard.next_review_at <= :now)',
+        { now },
+      )
+      .orderBy('flashcard.next_review_at', 'ASC', 'NULLS FIRST')
+      .addOrderBy('flashcard.created_at', 'ASC')
+      .limit(limit)
+      .getMany();
   }
 }
