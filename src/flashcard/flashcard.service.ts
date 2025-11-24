@@ -77,7 +77,11 @@ export class FlashcardService {
     }
   }
 
-  async generate(deckId: string, frontContent: string): Promise<Flashcard> {
+  async generate(
+    deckId: string,
+    frontContent: string,
+    customPrompt?: string,
+  ): Promise<Flashcard> {
     const { GoogleGenerativeAI } = require('@google/generative-ai');
     const genAI = new GoogleGenerativeAI(
       this.configService.get<string>('GEMINI_API_KEY'),
@@ -86,7 +90,7 @@ export class FlashcardService {
       model: 'gemini-2.5-flash-lite',
     });
 
-    const prompt = `You are a flashcard generator. Your task is to create informative back content using simple language for a given front content.
+    const defaultPrompt = `You are a flashcard generator. Your task is to create informative back content using simple language for a given front content.
 The back content should primarily focus on providing dictionary definitions for the key term(s) or concept(s) presented in the front content.
 If applicable, include a brief example or context to aid understanding.
 Format the definitions clearly, perhaps using bullet points or numbered lists.
@@ -95,7 +99,11 @@ Reply with nothing more than the back content, ensuring it's ready for a flashca
 Front: ${frontContent}
 Back: `;
 
-    const result = await model.generateContent(prompt);
+    const finalPrompt = customPrompt
+      ? `${customPrompt}\n\nFront: ${frontContent}\nBack: `
+      : defaultPrompt;
+
+    const result = await model.generateContent(finalPrompt);
     const response = await result.response;
     const backContent = response.text();
 

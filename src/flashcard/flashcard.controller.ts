@@ -27,8 +27,14 @@ export class FlashcardController {
   }
 
   @Post('generate')
-  generate(@Body() body: { deck_id: string; front_content: string }) {
-    return this.flashcardService.generate(body.deck_id, body.front_content);
+  generate(
+    @Body() body: { deck_id: string; front_content: string; prompt?: string },
+  ) {
+    return this.flashcardService.generate(
+      body.deck_id,
+      body.front_content,
+      body.prompt,
+    );
   }
 
   @Get()
