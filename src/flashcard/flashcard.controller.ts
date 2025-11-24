@@ -21,6 +21,11 @@ export class FlashcardController {
     return this.flashcardService.create(createFlashcardDto);
   }
 
+  @Post('generate')
+  generate(@Body() body: { deck_id: string; front_content: string }) {
+    return this.flashcardService.generate(body.deck_id, body.front_content);
+  }
+
   @Get()
   findAll(@Query('deckId') deckId?: string) {
     return this.flashcardService.findAll(deckId);

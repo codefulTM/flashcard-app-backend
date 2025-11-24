@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+} from 'typeorm';
 import { Deck } from './deck.entity';
 import { FlashcardMedia } from './flashcard-media.entity';
 import { ReviewLog } from './review-log.entity';
@@ -11,7 +20,7 @@ export class Flashcard {
   @Column('uuid')
   deck_id: string;
 
-  @ManyToOne(() => Deck, (deck) => deck.flashcards)
+  @ManyToOne(() => Deck, (deck) => deck.flashcards, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'deck_id' })
   deck: Deck;
 
