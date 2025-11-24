@@ -31,8 +31,9 @@ export class FlashcardController {
     @Query('deckId') deckId?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('search') search?: string,
   ) {
-    return this.flashcardService.findAll(deckId, page, limit);
+    return this.flashcardService.findAll(deckId, page, limit, search);
   }
 
   @Get(':id')

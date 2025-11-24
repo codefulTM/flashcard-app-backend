@@ -23,9 +23,18 @@ export class FlashcardService {
     deckId?: string,
     page: number = 1,
     limit: number = 10,
+    search?: string,
   ): Promise<{ data: Flashcard[]; total: number }> {
     const skip = (page - 1) * limit;
-    const where = deckId ? { deck_id: deckId } : {};
+    const { ILike } = require('typeorm');
+
+    const where: any = {};
+    if (deckId) {
+      where.deck_id = deckId;
+    }
+    if (search) {
+      where.front_content = ILike(`%${search}%`);
+    }
 
     const [data, total] = await this.flashcardsRepository.findAndCount({
       where,
