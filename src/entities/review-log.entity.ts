@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 import { Flashcard } from './flashcard.entity';
 
@@ -17,7 +24,9 @@ export class ReviewLog {
   @Column('uuid')
   flashcard_id: string;
 
-  @ManyToOne(() => Flashcard, (flashcard) => flashcard.reviewLogs)
+  @ManyToOne(() => Flashcard, (flashcard) => flashcard.reviewLogs, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'flashcard_id' })
   flashcard: Flashcard;
 
