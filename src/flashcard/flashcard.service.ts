@@ -157,15 +157,16 @@ Back: `;
     limit: number = 20,
   ): Promise<Flashcard[]> {
     const now = new Date();
-    // now.setHours(0, 0, 0, 0); // Removed to support intraday reviews
+    // Include cards due within next 24 hours for early review
+    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     return this.flashcardsRepository
       .createQueryBuilder('flashcard')
       .where('flashcard.deck_id = :deckId', { deckId })
       .andWhere('flashcard.is_suspended = :isSuspended', { isSuspended: false })
       .andWhere(
-        '(flashcard.next_review_at IS NULL OR flashcard.next_review_at <= :now)',
-        { now },
+        '(flashcard.next_review_at IS NULL OR flashcard.next_review_at <= :next24Hours)',
+        { next24Hours },
       )
       .orderBy('flashcard.next_review_at', 'ASC', 'NULLS FIRST')
       .addOrderBy('flashcard.created_at', 'ASC')
