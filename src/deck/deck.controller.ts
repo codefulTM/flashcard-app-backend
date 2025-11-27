@@ -40,4 +40,13 @@ export class DeckController {
   remove(@Param('id') id: string) {
     return this.deckService.remove(id);
   }
+
+  @Post(':id/custom-study')
+  createCustomStudy(
+    @Param('id') id: string,
+    @Body('userId') userId: string,
+    @Body('days') days: number,
+  ) {
+    return this.deckService.createCustomStudyDeck(id, userId, days);
+  }
 }

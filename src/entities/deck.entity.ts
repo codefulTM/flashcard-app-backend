@@ -1,4 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany, ManyToMany, JoinTable, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  OneToMany,
+  ManyToMany,
+  JoinTable,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './user.entity';
 import { Flashcard } from './flashcard.entity';
 import { Tag } from './tag.entity';
@@ -26,6 +37,12 @@ export class Deck {
 
   @Column({ default: 20 })
   cards_per_session: number;
+
+  @Column({ default: false })
+  is_custom_study: boolean;
+
+  @Column('uuid', { nullable: true })
+  source_deck_id: string;
 
   @CreateDateColumn()
   created_at: Date;
