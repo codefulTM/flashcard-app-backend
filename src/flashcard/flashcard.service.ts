@@ -20,7 +20,10 @@ export class FlashcardService {
   ) {}
 
   async create(createFlashcardDto: CreateFlashcardDto): Promise<Flashcard> {
-    const flashcard = this.flashcardsRepository.create(createFlashcardDto);
+    const flashcard = this.flashcardsRepository.create({
+      ...createFlashcardDto,
+      next_review_at: new Date(), // Set to current time so it's immediately available for review
+    });
     return this.flashcardsRepository.save(flashcard);
   }
 
