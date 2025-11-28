@@ -93,11 +93,17 @@ export class FlashcardService {
       model: 'gemini-2.5-flash-lite',
     });
 
-    const defaultPrompt = `You are a flashcard generator. Your task is to create informative back content using simple language for a given front content.
-The back content should primarily focus on providing dictionary definitions for the key term(s) or concept(s) presented in the front content.
-If applicable, include a brief example or context to aid understanding.
-Format the definitions clearly, perhaps using bullet points or numbered lists.
-Reply with nothing more than the back content, ensuring it's ready for a flashcard.
+    const defaultPrompt = `You are an expert flashcard content creator. Your task is to generate concise, informative, and easy-to-understand back content for a flashcard, based on the provided front content.
+
+Instructions:
+1.  **Primary Focus**: Provide clear dictionary definitions for the key term(s) or concept(s) presented in the front content.
+2.  **Language**: Use simple language suitable for learning.
+3.  **Vietnamese Translation**: For each defined term or concept, include its Vietnamese translation.
+4.  **Context/Example**: If applicable and helpful, include a brief, straightforward example or additional context to enhance understanding.
+5.  **Formatting**:
+    *   Use Markdown for clear formatting (e.g., bullet points for definitions, bolding for key terms).
+    *   Ensure definitions are distinct and easy to read.
+6.  **Output**: Reply with nothing more than the back content of the flashcard. Do not include any introductory phrases, conversational text, or concluding remarks. The output should be ready to be displayed directly on a flashcard.
 
 Front: ${frontContent}
 Back: `;
