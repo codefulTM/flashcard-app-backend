@@ -13,7 +13,7 @@ export class DeckService {
     private decksRepository: Repository<Deck>,
     @InjectRepository(Flashcard)
     private flashcardsRepository: Repository<Flashcard>,
-  ) {}
+  ) { }
 
   async create(createDeckDto: CreateDeckDto, userId: string): Promise<Deck> {
     const deck = this.decksRepository.create({
@@ -40,7 +40,8 @@ export class DeckService {
       name: d.name,
       description: d.description,
       is_public: d.is_public,
-      cards_per_session: d.cards_per_session,
+      review_cards_per_session: d.review_cards_per_session,
+      learn_cards_per_session: d.learn_cards_per_session,
       user_id: d.user_id,
       created_at: d.created_at,
       updated_at: d.updated_at,
@@ -69,7 +70,8 @@ export class DeckService {
       name: deck.name,
       description: deck.description,
       is_public: deck.is_public,
-      cards_per_session: deck.cards_per_session,
+      review_cards_per_session: deck.review_cards_per_session,
+      learn_cards_per_session: deck.learn_cards_per_session,
       user_id: deck.user_id,
       created_at: deck.created_at,
       updated_at: deck.updated_at,
@@ -130,14 +132,20 @@ export class DeckService {
       );
     }
 
+    // Separate review cards (already studied) from new cards (never studied)
+    const reviewCards = flashcards.filter((fc) => fc.repetitions > 0);
+    const learnCards = flashcards.filter((fc) => fc.repetitions === 0);
+
     // Create custom study deck
     const customDeck = this.decksRepository.create({
       name: `Custom Study: ${sourceDeck.name} (${days}d)`,
-      description: `Custom study session for ${sourceDeck.name} - cards due in next ${days} day(s)`,
+      description: `Custom study session for ${sourceDeck.name} - ${reviewCards.length} review card(s) and ${learnCards.length} new card(s) due in next ${days} day(s)`,
       user_id: userId,
       is_custom_study: true,
       source_deck_id: sourceDeckId,
-      cards_per_session: flashcards.length,
+      review_cards_per_session: reviewCards.length,
+      learn_cards_per_session: learnCards.length,
+      custom_study_days: days,
     });
 
     const savedDeck = await this.decksRepository.save(customDeck);
@@ -153,10 +161,11 @@ export class DeckService {
         next_review_at: new Date(),
         interval: 1,
         ease_factor: 2.5,
-        repetitions: 0,
+        repetitions: fc.repetitions,
         state: 'due',
       }),
     );
+    // console.log(copiedFlashcards)
 
     await this.flashcardsRepository.save(copiedFlashcards);
 

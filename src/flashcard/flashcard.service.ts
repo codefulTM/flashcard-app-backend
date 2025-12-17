@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Flashcard } from '../entities/flashcard.entity';
+import { Deck } from '../entities/deck.entity';
 import { ReviewLog } from '../entities/review-log.entity';
 import { CreateFlashcardDto } from './dto/create-flashcard.dto';
 import { UpdateFlashcardDto } from './dto/update-flashcard.dto';
@@ -14,10 +15,12 @@ export class FlashcardService {
   constructor(
     @InjectRepository(Flashcard)
     private flashcardsRepository: Repository<Flashcard>,
+    @InjectRepository(Deck)
+    private decksRepository: Repository<Deck>,
     @InjectRepository(ReviewLog)
     private reviewLogsRepository: Repository<ReviewLog>,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   async create(createFlashcardDto: CreateFlashcardDto): Promise<Flashcard> {
     const flashcard = this.flashcardsRepository.create({
@@ -163,23 +166,69 @@ Back: `;
 
   async getDueFlashcards(
     deckId: string,
-    limit: number = 20,
+    limit?: number,
   ): Promise<Flashcard[]> {
-    const now = new Date();
-    // Include cards due within next 24 hours for early review
-    const next24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    // Get deck configuration
+    const deck = await this.decksRepository.findOne({
+      where: { id: deckId },
+    });
+    console.log(deck?.id);
 
-    return this.flashcardsRepository
+    if (!deck) {
+      throw new NotFoundException(`Deck with ID "${deckId}" not found`);
+    }
+
+    // Use deck settings or fallback to provided limit or defaults
+    const reviewLimit = limit ?? deck.review_cards_per_session ?? 20;
+    console.log(reviewLimit);
+    const learnLimit = limit ?? deck.learn_cards_per_session ?? 10;
+    console.log(learnLimit);
+    const now = new Date();
+    // Calculate cutoff date based on deck settings
+    // If custom study deck, use custom_study_days (default to 1 if not set)
+    // If regular deck, use 1 day (24 hours)
+    const lookaheadDays = deck.is_custom_study
+      ? deck.custom_study_days || 1
+      : 1;
+
+    const nextDue = new Date(now.getTime() + lookaheadDays * 24 * 60 * 60 * 1000);
+    // Fetch review cards (cards that have been studied before, repetitions > 0)
+    const reviewQuery = this.flashcardsRepository
       .createQueryBuilder('flashcard')
       .where('flashcard.deck_id = :deckId', { deckId })
       .andWhere('flashcard.is_suspended = :isSuspended', { isSuspended: false })
+      .andWhere('flashcard.repetitions > :repetitions', { repetitions: 0 })
       .andWhere(
-        '(flashcard.next_review_at IS NULL OR flashcard.next_review_at <= :next24Hours)',
-        { next24Hours },
+        '(flashcard.next_review_at IS NULL OR flashcard.next_review_at <= :nextDue)',
+        { nextDue },
       )
       .orderBy('flashcard.next_review_at', 'ASC', 'NULLS FIRST')
       .addOrderBy('flashcard.created_at', 'ASC')
-      .limit(limit)
+      .limit(reviewLimit);
+
+    console.log('Review Cards Query:', reviewQuery.getSql());
+    console.log('Review Cards Query Parameters:', reviewQuery.getParameters());
+
+    const reviewCards = await reviewQuery.getMany();
+
+
+
+    // Fetch learn cards (new cards that haven't been studied, repetitions = 0)
+    const learnCards = await this.flashcardsRepository
+      .createQueryBuilder('flashcard')
+      .where('flashcard.deck_id = :deckId', { deckId })
+      .andWhere('flashcard.is_suspended = :isSuspended', { isSuspended: false })
+      .andWhere('flashcard.repetitions = :repetitions', { repetitions: 0 })
+      .andWhere(
+        '(flashcard.next_review_at IS NULL OR flashcard.next_review_at <= :nextDue)',
+        { nextDue },
+      )
+      .orderBy('flashcard.created_at', 'ASC')
+      .limit(learnLimit)
       .getMany();
+
+    // Combine review cards and learn cards
+    // Review cards first, then learn cards (this mimics Anki's behavior)
+    return [...reviewCards, ...learnCards];
   }
 }

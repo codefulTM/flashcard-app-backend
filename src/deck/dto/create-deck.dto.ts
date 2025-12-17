@@ -21,5 +21,9 @@ export class CreateDeckDto {
 
   @IsOptional()
   @IsNumber()
-  cards_per_session?: number;
+  review_cards_per_session?: number;
+
+  @IsOptional()
+  @IsNumber()
+  learn_cards_per_session?: number;
 }

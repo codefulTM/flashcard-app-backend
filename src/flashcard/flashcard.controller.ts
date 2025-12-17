@@ -19,7 +19,7 @@ import type { CurrentUserData } from '../auth/current-user.decorator';
 
 @Controller('flashcards')
 export class FlashcardController {
-  constructor(private readonly flashcardService: FlashcardService) {}
+  constructor(private readonly flashcardService: FlashcardService) { }
 
   @Post()
   create(@Body() createFlashcardDto: CreateFlashcardDto) {
@@ -80,7 +80,7 @@ export class FlashcardController {
   @UseGuards(JwtAuthGuard)
   getDueFlashcards(
     @Param('deckId') deckId: string,
-    @Query('limit') limit: number = 20,
+    @Query('limit') limit?: number,
   ) {
     return this.flashcardService.getDueFlashcards(deckId, limit);
   }

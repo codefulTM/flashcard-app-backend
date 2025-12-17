@@ -36,13 +36,19 @@ export class Deck {
   is_public: boolean;
 
   @Column({ default: 20 })
-  cards_per_session: number;
+  review_cards_per_session: number;
+
+  @Column({ default: 10 })
+  learn_cards_per_session: number;
 
   @Column({ default: false })
   is_custom_study: boolean;
 
   @Column('uuid', { nullable: true })
   source_deck_id: string;
+
+  @Column({ nullable: true })
+  custom_study_days: number;
 
   @CreateDateColumn()
   created_at: Date;
