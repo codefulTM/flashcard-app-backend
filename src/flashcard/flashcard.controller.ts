@@ -76,6 +76,20 @@ export class FlashcardController {
     return this.flashcardService.review(id, user.userId, reviewDto);
   }
 
+  @Post(':id/regenerate')
+  regenerate(@Param('id') id: string, @Body() body: { prompt?: string }) {
+    return this.flashcardService.regenerate(id, body.prompt);
+  }
+
+  @Post(':id/undo-review')
+  @UseGuards(JwtAuthGuard)
+  undoReview(
+    @Param('id') id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.flashcardService.undoReview(id, user.userId);
+  }
+
   @Get('deck/:deckId/due')
   @UseGuards(JwtAuthGuard)
   getDueFlashcards(

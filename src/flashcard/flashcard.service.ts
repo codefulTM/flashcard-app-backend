@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +9,8 @@ import { CreateFlashcardDto } from './dto/create-flashcard.dto';
 import { UpdateFlashcardDto } from './dto/update-flashcard.dto';
 import { ReviewFlashcardDto } from './dto/review-flashcard.dto';
 import { calculateSM2, ratingToQuality } from '../utils/sm2.algorithm';
+import type { LlmClient } from '../llm/llm.client';
+import { LLM_CLIENT } from '../llm/llm.client';
 
 @Injectable()
 export class FlashcardService {
@@ -20,6 +22,8 @@ export class FlashcardService {
     @InjectRepository(ReviewLog)
     private reviewLogsRepository: Repository<ReviewLog>,
     private configService: ConfigService,
+    @Inject(LLM_CLIENT)
+    private llmClient: LlmClient,
   ) { }
 
   async create(createFlashcardDto: CreateFlashcardDto): Promise<Flashcard> {
@@ -88,14 +92,6 @@ export class FlashcardService {
     frontContent: string,
     customPrompt?: string,
   ): Promise<Flashcard> {
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(
-      this.configService.get<string>('GEMINI_API_KEY'),
-    );
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash-lite',
-    });
-
     const defaultPrompt = `You are an expert flashcard content creator. Your task is to generate concise, informative, and easy-to-understand back content for a flashcard, based on the provided front content.
 
 Instructions:
@@ -115,15 +111,46 @@ Back: `;
       ? `${customPrompt}\n\nFront: ${frontContent}\nBack: `
       : defaultPrompt;
 
-    const result = await model.generateContent(finalPrompt);
-    const response = await result.response;
-    const backContent = response.text();
+    const modelName = this.configService.get<string>('LLM_MODEL') || 'llama2';
+    const temperature = Number(this.configService.get<string>('LLM_TEMPERATURE') ?? '0');
+    const backContent = await this.llmClient.generate(finalPrompt, { model: modelName, max_tokens: 512, temperature, stream: false });
 
     return this.create({
       deck_id: deckId,
       front_content: frontContent,
       back_content: backContent,
     });
+  }
+
+  async regenerate(id: string, customPrompt?: string): Promise<Flashcard> {
+    const flashcard = await this.findOne(id);
+
+    const frontContent = flashcard.front_content;
+    const defaultPrompt = `You are an expert flashcard content creator. Your task is to generate concise, informative, and easy-to-understand back content for a flashcard, based on the provided front content.
+
+Instructions:
+1.  **Primary Focus**: Provide clear dictionary definitions for the key term(s) or concept(s) presented in the front content.
+2.  **Language**: Use simple language suitable for learning.
+3.  **Vietnamese Translation**: For each defined term or concept, include its Vietnamese translation.
+4.  **Context/Example**: If applicable and helpful, include a brief, straightforward example or additional context to enhance understanding.
+5.  **Formatting**:
+    *   Use Markdown for clear formatting (e.g., bullet points for definitions, bolding for key terms).
+    *   Ensure definitions are distinct and easy to read.
+6.  **Output**: Reply with nothing more than the back content of the flashcard. Do not include any introductory phrases, conversational text, or concluding remarks. The output should be ready to be displayed directly on a flashcard.
+
+Front: ${frontContent}
+Back: `;
+
+    const finalPrompt = customPrompt
+      ? `${customPrompt}\n\nFront: ${frontContent}\nBack: `
+      : defaultPrompt;
+
+    const modelName = this.configService.get<string>('LLM_MODEL') || 'llama2';
+    const temperature = Number(this.configService.get<string>('LLM_TEMPERATURE') ?? '0');
+    const backContent = await this.llmClient.generate(finalPrompt, { model: modelName, max_tokens: 512, temperature, stream: false });
+
+    flashcard.back_content = backContent;
+    return this.flashcardsRepository.save(flashcard);
   }
 
   async review(
@@ -230,5 +257,49 @@ Back: `;
     // Combine review cards and learn cards
     // Review cards first, then learn cards (this mimics Anki's behavior)
     return [...reviewCards, ...learnCards];
+  }
+
+  async undoReview(id: string, userId: string): Promise<Flashcard> {
+    const flashcard = await this.findOne(id);
+
+    // Find all review logs for this flashcard by this user
+    const logs = await this.reviewLogsRepository.find({
+      where: { flashcard_id: id, user_id: userId },
+      order: { reviewed_at: 'ASC' },
+    });
+
+    if (!logs || logs.length === 0) {
+      throw new NotFoundException('No review logs found to undo');
+    }
+
+    // Remove the last log
+    const lastLog = logs[logs.length - 1];
+    await this.reviewLogsRepository.delete(lastLog.id);
+
+    // Reset SRS fields and replay remaining logs
+    flashcard.repetitions = 0;
+    flashcard.ease_factor = 2.5;
+    flashcard.interval = 0;
+    flashcard.next_review_at = null;
+    flashcard.state = 'new';
+
+    const remaining = logs.slice(0, -1);
+    for (const log of remaining) {
+      const quality = ratingToQuality(log.rating);
+      const sm2Result = calculateSM2({
+        quality,
+        repetitions: flashcard.repetitions,
+        easeFactor: flashcard.ease_factor,
+        interval: flashcard.interval || 0,
+      });
+
+      flashcard.interval = sm2Result.interval;
+      flashcard.repetitions = sm2Result.repetitions;
+      flashcard.ease_factor = sm2Result.easeFactor;
+      flashcard.next_review_at = sm2Result.nextReviewDate;
+      flashcard.state = sm2Result.state;
+    }
+
+    return this.flashcardsRepository.save(flashcard);
   }
 }

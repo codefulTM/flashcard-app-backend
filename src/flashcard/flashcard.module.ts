@@ -6,9 +6,10 @@ import { Flashcard } from '../entities/flashcard.entity';
 import { Deck } from '../entities/deck.entity';
 import { ReviewLog } from '../entities/review-log.entity';
 import { AuthModule } from '../auth/auth.module';
+import { LlmModule } from '../llm/llm.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Flashcard, Deck, ReviewLog]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Flashcard, Deck, ReviewLog]), AuthModule, LlmModule],
   providers: [FlashcardService],
   controllers: [FlashcardController],
 })

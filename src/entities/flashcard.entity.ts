@@ -41,7 +41,7 @@ export class Flashcard {
 
   // Spaced Repetition Fields
   @Column({ type: 'timestamp', nullable: true })
-  next_review_at: Date;
+  next_review_at: Date | null;
 
   @Column({ type: 'int', nullable: true })
   interval: number;

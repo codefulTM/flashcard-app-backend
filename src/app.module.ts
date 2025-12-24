@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DeckModule } from './deck/deck.module';
 import { FlashcardModule } from './flashcard/flashcard.module';
+import { LlmModule } from './llm/llm.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { FlashcardModule } from './flashcard/flashcard.module';
     AuthModule,
     DeckModule,
     FlashcardModule,
+    LlmModule,
   ],
   controllers: [AppController],
   providers: [AppService],
