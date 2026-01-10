@@ -114,6 +114,7 @@ Back: `;
     const modelName = this.configService.get<string>('LLM_MODEL') || 'llama2';
     const temperature = Number(this.configService.get<string>('LLM_TEMPERATURE') ?? '0');
     const backContent = await this.llmClient.generate(finalPrompt, { model: modelName, max_tokens: 512, temperature, stream: false });
+    // const backContent = 
 
     return this.create({
       deck_id: deckId,
